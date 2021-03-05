@@ -40,7 +40,7 @@ def process():
                        "error": "No file uploaded, image file is required"
                    }, HTTPStatus.BAD_REQUEST
         image = request.files['imageFile']
-        image_np = np.asarray(bytearray(image.stream), dtype="uint8")
+        image_np = np.asarray(bytearray(image.stream.read()), dtype="uint8")
 
         image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
         results = recognition(image)
