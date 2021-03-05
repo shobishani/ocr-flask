@@ -4,37 +4,10 @@ import numpy as np
 import cv2
 import easyocr
 import os
-
-SECRET_KEY = os.getenv('SECRET_KEY', 'easyocr_vdt');
+from http import HTTPStatus
 reader = easyocr.Reader(['en'], gpu=False)
 
 app = Flask(__name__)
-
-
-def url_to_image(url):
-    """
-    download the image, convert it to a NumPy array, and then read it into OpenCV format
-    :param url: url to the image
-    :return: image in format of Opencv
-    """
-    resp = urllib.request.urlopen(url)
-    image = np.asarray(bytearray(resp.read()), dtype="uint8")
-    print("url = ", url)
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-    return image
-
-
-def data_process(data):
-    """
-    read params from the received data
-    :param data: in json format
-    :return: params for image processing
-    """
-    image_url = data["image_url"]
-    secret_key = data["secret_key"]
-
-    return url_to_image(image_url), secret_key
-
 
 def recognition(image):
     """
@@ -61,15 +34,23 @@ def process():
     received request from client and process the image
     :return: dict of width and points
     """
-    data = request.get_json()
-    image, secret_key = data_process(data)
-    if secret_key == SECRET_KEY:
+    try:
+        if 'imageFile' not in request.files:
+            return {
+                       "error": "No file uploaded, image file is required"
+                   }, HTTPStatus.BAD_REQUEST
+        image = request.files['imageFile']
+        image_np = np.asarray(bytearray(image.stream), dtype="uint8")
+
+        image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
         results = recognition(image)
         return {
-            "results": results
-        }
-    else:
-        abort(401)
+                   "results": results
+               }, HTTPStatus.OK
+    except Exception as e:
+        return {
+            "error": str(e)
+        }, HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 if __name__ == "__main__":
