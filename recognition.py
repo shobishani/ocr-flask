@@ -3,10 +3,10 @@ import urllib
 import numpy as np
 import cv2
 import easyocr
-import os
+import logging
 from http import HTTPStatus
 reader = easyocr.Reader(['ar','en'], gpu=False)
-
+logger = logging.getLogger("ocr-image-api")
 app = Flask(__name__)
 
 def recognition(image):
@@ -31,19 +31,31 @@ def process():
     :return: dict of width and points
     """
     try:
-        if 'imageFile' not in request.files:
+        if 'imageFile' not in request.files and 'imageFile[]' not in request.files:
+            logger.warning("no image was found in request")
             return {
                        "error": "No file uploaded, image file is required"
                    }, HTTPStatus.BAD_REQUEST
-        image = request.files['imageFile']
-        image_np = np.asarray(bytearray(image.stream.read()), dtype="uint8")
+        images = request.files.get('imageFile')
+        if not images:
+            images = request.files.getlist('imageFile[]')
+            logger.info("multiple images found in request")
+        else:
+            logger.info("signel image found in request")
+            images = [images]
 
-        image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
-        results = recognition(image)
+        results = []
+        for x in images:
+            image_np = np.asarray(bytearray(x.stream.read()), dtype="uint8")
+            image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
+            results.append(recognition(image))
+            logger.info("successfully processed one image")
+
         return {
                    "results": results
                }, HTTPStatus.OK
     except Exception as e:
+        logger.error(e)
         return {
             "error": str(e)
         }, HTTPStatus.INTERNAL_SERVER_ERROR
