@@ -5,7 +5,7 @@ import cv2
 import easyocr
 import os
 from http import HTTPStatus
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(['ar','en'], gpu=False)
 
 app = Flask(__name__)
 
@@ -16,16 +16,12 @@ def recognition(image):
     :return:
     """
     results = []
-    texts = reader.readtext(image)
-    for (bbox, text, prob) in texts:
-        output = {
-            "coordinate": [list(map(float, coordinate)) for coordinate in bbox],
-            "text": text,
-            "score": prob
-        }
-        results.append(output)
+    texts = reader.readtext(image, detail=0, paragraph=True)
+    response = ""
+    for text in texts:
+        response = response + " " + text
 
-    return results
+    return response
 
 
 @app.route('/ocr', methods=['GET', 'POST'])
